@@ -257,7 +257,7 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
     if (!empty($element['#default_value'][$field_key])) {
       $field_name = $element['#parents'][0];
       $field = field_info_field($field_name);
-      $views = viewreference_get_views($field['settings']['append_id'], array($element['#default_value'][$field_key]));
+      $views = viewreference_get_views(TRUE, array($element['#default_value'][$field_key]));
       $value = $views[$element['#default_value'][$field_key]];
       return array($field_key => $value, $args_key => $element['#default_value'][$args_key]);
     }
@@ -524,7 +524,7 @@ function viewreference_get_views($append_id = FALSE, $filter = NULL, $full = FAL
           );
           $display_title = theme('viewreference_display_title', $theme_vars);
           // Determine whether and what to return.
-          $key = $long_key ? $display_title : $id;
+          $key = $long_key ? $display_title . ($append_id ? '' : ' [' . $id . ']') : $id;
           if ($string) {
             if (!$exact_string && (stripos($display_title, $string) !== FALSE || stripos($key, $string) !== FALSE)) {
               $views[$key] = $full ? $display : $display_title;
