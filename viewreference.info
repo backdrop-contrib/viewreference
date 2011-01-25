@@ -1,8 +1,6 @@
 ; $Id$
-name = View Reference
+name = View reference
 description = Defines a field type for referencing a view from a node.
-core = 6.x
-dependencies[] = content
-dependencies[] = text
+package = Fields
+core = 7.x
 dependencies[] = views
-package = CCK
