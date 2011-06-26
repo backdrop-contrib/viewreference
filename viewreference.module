@@ -722,7 +722,7 @@ function viewreference_select_process($element, $form_state, $form) {
   $settings = $field[$language]['field']['settings'];
 
   $options = viewreference_get_views($settings['append_id'], $settings['referenceable_views']);
-  if (!$element['#required']) {
+  if (!$instance['required']) {
     $options = array(0 => '<'. t('none') .'>') + $options;
   }
 
@@ -735,7 +735,7 @@ function viewreference_select_process($element, $form_state, $form) {
     '#delta' => $element['#delta'],
     '#columns' => $element['#columns'],
     '#title' => $instance['label'],
-    '#required' => $element['#required'],
+    '#required' => $instance['required'],
     '#description' => isset($element['#description']) ? $element['#description'] : NULL,
   );
 
