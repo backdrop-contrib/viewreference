@@ -602,6 +602,8 @@ function viewreference_get_element_args($element) {
       $args[$k] = trim($v);
     }
   }
+  // Allow modules to easily supply their own views arguments.
+  drupal_alter('viewreference_args', $args, $element);
   return $args;
 }
 
