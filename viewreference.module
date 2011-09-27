@@ -753,7 +753,7 @@ function viewreference_select_process($element, $form_state, $form) {
       '#type' => ($settings['arguments']['rows'] == 1 ? 'textfield' : 'textarea'),
       '#default_value' => isset($element['#value'][$element['#columns'][1]]) ? $element['#value'][$element['#columns'][1]] : '',
       '#title' => isset($settings['arguments']['label']) ? 
-        str_replace('!field_label', $instance['label'], $settings['arguments']['label']) : 
+        str_replace('!field_label', $instance['label'], check_plain($settings['arguments']['label'])) : 
         $instance['label'] . ' ' . t('arguments'),
       '#rows' => $settings['arguments']['rows'],
       '#language' => $language,
