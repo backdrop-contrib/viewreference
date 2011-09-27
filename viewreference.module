@@ -67,6 +67,7 @@ function viewreference_field_info() {
           'php_arguments' => 0,
           'delimiter' => '/',
           'rows' => 1,
+          'label' => '!field_label arguments',
         ),
         'append_id' => 0,
       ),
@@ -117,10 +118,10 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
   );
   $form['arguments'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Arguments'),
+    '#title' => t('Contextual filter arguments'),
     '#collapsible' => TRUE,
     '#collapsed' => ($settings['arguments']['dsv_arguments'] || $settings['arguments']['php_arguments']) ? FALSE : TRUE,
-    '#description' => t('Enabling the following options will provide an input field for passing arguments to the view.'),
+    '#description' => t('Enabling the following options will provide an input field for passing arguments (aka <em>contextual filters</em>) to the view.'),
   );
   $form['arguments']['dsv_arguments'] = array(
     '#type' => 'checkbox',
@@ -151,6 +152,12 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#options' => $row_range,
     '#description' => t('Set as 1 for textfield, or larger values for textarea (may be easier to write PHP with a textarea)'),
     '#required' => TRUE,
+  );
+  $form['arguments']['label'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Label for arguments field'),
+    '#default_value' => isset($settings['arguments']['label']) ? $settings['arguments']['label'] : '!field_label arguments',
+    '#description' => t('Use <em>!field_label</em> to insert the field label.'),
   );
   $form['append_id'] = array(
     '#type' => 'checkbox',
@@ -745,7 +752,9 @@ function viewreference_select_process($element, $form_state, $form) {
     $element[$element['#columns'][1]] = array(
       '#type' => ($settings['arguments']['rows'] == 1 ? 'textfield' : 'textarea'),
       '#default_value' => isset($element['#value'][$element['#columns'][1]]) ? $element['#value'][$element['#columns'][1]] : '',
-      '#title' => $instance['label'] . ' ' . t('arguments'),
+      '#title' => isset($settings['arguments']['label']) ? 
+        str_replace('!field_label', $instance['label'], $settings['arguments']['label']) : 
+        $instance['label'] . ' ' . t('arguments'),
       '#rows' => $settings['arguments']['rows'],
       '#language' => $language,
       '#delta' => $element['#delta'],
