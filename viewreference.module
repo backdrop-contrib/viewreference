@@ -745,22 +745,22 @@ function viewreference_select_process($element, $form_state, $form) {
     '#columns' => $element['#columns'],
     '#title' => $instance['label'],
     '#required' => $instance['required'],
-    '#description' => isset($element['#description']) ? $element['#description'] : NULL,
+    '#description' => isset($instance['description']) ? $instance['description'] : NULL,
   );
 
   if ($settings['arguments']['dsv_arguments'] || $settings['arguments']['php_arguments']) {
     $element[$element['#columns'][1]] = array(
       '#type' => ($settings['arguments']['rows'] == 1 ? 'textfield' : 'textarea'),
       '#default_value' => isset($element['#value'][$element['#columns'][1]]) ? $element['#value'][$element['#columns'][1]] : '',
-      '#title' => isset($settings['arguments']['label']) ? 
-        str_replace('!field_label', $instance['label'], check_plain($settings['arguments']['label'])) : 
+      '#title' => isset($settings['arguments']['label']) ?
+        str_replace('!field_label', $instance['label'], check_plain($settings['arguments']['label'])) :
         $instance['label'] . ' ' . t('arguments'),
       '#rows' => $settings['arguments']['rows'],
       '#language' => $language,
       '#delta' => $element['#delta'],
       '#columns' => $element['#columns'],
-      '#required' => $element['#required'],
-      '#description' => isset($element['#description']) ? $element['#description'] : NULL,
+      //'#required' => $element['#required'],
+      //'#description' => isset($element['#description']) ? $element['#description'] : NULL,
     );
   }
 
