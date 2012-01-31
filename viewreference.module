@@ -398,14 +398,18 @@ function viewreference_views_display_title($view_name, $view, $display) {
  */
 function viewreference_get_view($element, $params = array()) {
   if (!empty($element['item']['view_id'])) {
-
     $view_id_parts = explode(':', $element['item']['view_id']);
     $view['name'] = $view_id_parts[0];
     $view['display'] = $view_id_parts[1];
     $view['view'] = views_get_view($view['name']);
     if ($view['view'] && $view['view']->access($view['display'])) {
+      // Save $_GET['q'] so it can be restored before returning from this function.
+      $q = $_GET['q'];
       if (in_array('embed', $params)) {
         $view['args'] = viewreference_get_element_args($element);
+        if (!empty($view['args'])) {
+          $_GET['q'] .= '/' . implode('/', $view['args']);
+        }
         $view['embed'] = $view['view']->preview($view['display'], $view['args']);
       }
       if (in_array('title', $params) || in_array('link', $params)) {
@@ -426,6 +430,7 @@ function viewreference_get_view($element, $params = array()) {
           }
         }
       }
+      $_GET['q'] = $q;
       return $view;
     }
   }
