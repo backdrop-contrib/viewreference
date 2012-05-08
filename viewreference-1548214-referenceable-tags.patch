@@ -1,0 +1,197 @@
+diff --git a/README.txt b/README.txt
+diff --git a/viewreference.module b/viewreference.module
+index f290c1a..ea0c021 100755
+--- a/viewreference.module
++++ b/viewreference.module
+@@ -62,6 +62,10 @@ function viewreference_field_info() {
+       'description'       => t('Reference a views display from the views module.'),
+       'settings'          => array(
+         'referenceable_views' => array(),
++        'referenceable_tags' => array(
++          'allow' => '',
++          'deny' => '',
++        ),
+         'arguments' => array(
+           'dsv_arguments' => 0,
+           'php_arguments' => 0,
+@@ -111,17 +115,40 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
+   $form['referenceable_views'] = array(
+     '#type' => 'checkboxes',
+     '#title' => t('Views that can be referenced'),
+-    '#description' => t('Select the views that can be referenced. If no views are selected, then all the views will be available.'),
++    '#description' => t('Select the Views that can be referenced. If no Views are selected here, and tags are not entered below, then all the Views will be available.'),
+     '#multiple' => TRUE,
+     '#default_value' => is_array($settings['referenceable_views']) ? $settings['referenceable_views'] : array(),
+     '#options' => viewreference_get_views($settings['append_id']),
+   );
++  $form['referenceable_tags'] = array(
++    '#type' => 'fieldset',
++    '#title' => t('Views tags that can be referenced'),
++    '#collapsible' => TRUE,
++    '#collapsed' => (!empty($settings['referenceable_tags']['allow']) || !empty($settings['referenceable_tags']['deny'])) ? FALSE : TRUE,
++    '#description' => t('Optionally you can allow views by tags here instead of, or in addition to, using <em>Views that can be referenced</em>, then other Views will be excluded.  You can also deny views by tags, and if <em>Views that can be referenced</em> and the <em>Allow list</em> are left blank all other Views will be available.'),
++  );
++  $form['referenceable_tags']['allow'] = array(
++    '#type' => 'textfield',
++    '#title' => t('Allow list'),
++    '#default_value' => !empty($settings['referenceable_tags']['allow']) ? $settings['referenceable_tags']['allow'] : '',
++    '#size' => 128,
++    '#maxlength' => 512,
++    '#description' => t('Enter a comma delimited list of tags to include.'),
++  );
++  $form['referenceable_tags']['deny'] = array(
++    '#type' => 'textfield',
++    '#title' => t('Deny list'),
++    '#default_value' => !empty($settings['referenceable_tags']['deny']) ? $settings['referenceable_tags']['deny'] : '',
++    '#size' => 128,
++    '#maxlength' => 512,
++    '#description' => t('Enter a comma delimited list of tags to exclude.'),
++  );
+   $form['arguments'] = array(
+     '#type' => 'fieldset',
+     '#title' => t('Contextual filter arguments'),
+     '#collapsible' => TRUE,
+     '#collapsed' => ($settings['arguments']['dsv_arguments'] || $settings['arguments']['php_arguments']) ? FALSE : TRUE,
+-    '#description' => t('Enabling the following options will provide an input field for passing arguments (aka <em>contextual filters</em>) to the view.'),
++    '#description' => t('Enabling the following options will provide an input field for passing arguments (aka <em>contextual filters</em>) to the View.'),
+   );
+   $form['arguments']['dsv_arguments'] = array(
+     '#type' => 'checkbox',
+@@ -163,7 +190,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
+     '#type' => 'checkbox',
+     '#title' => t('Append unique ID in lists.'),
+     '#default_value' => isset($settings['append_id']) ? $settings['append_id'] : 0,
+-    '#description' => t('It is possible for views displays to have the same title, this option will append [view:view_display_n] in lists used by this field to disambiguate the options.'),
++    '#description' => t('It is possible for Views displays to have the same title, this option will append [view:view_display_n] in lists used by this field to disambiguate the options.'),
+   );
+   return $form;
+ 
+@@ -173,7 +200,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
+  * Implements hook_field_validate().
+  */
+ function viewreference_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+-  $views = viewreference_get_views($field['settings']['append_id'], $field['settings']['referenceable_views']);
++  $views = viewreference_get_views($field['settings']['append_id'], $field['settings']);
+   foreach ($items as $delta => $item) {
+     if (is_array($item)) {
+       if (!empty($item['view_id'])) {
+@@ -263,7 +290,7 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
+     if (!empty($element['#default_value'][$field_key])) {
+       $field_name = $element['#parents'][0];
+       $field = field_info_field($field_name);
+-      $views = viewreference_get_views(TRUE, array($element['#default_value'][$field_key]));
++      $views = viewreference_get_views(TRUE, array('referenceable_views' => array($element['#default_value'][$field_key])));
+       $value = $views[$element['#default_value'][$field_key]];
+       return array($field_key => $value, $args_key => $element['#default_value'][$args_key]);
+     }
+@@ -292,7 +319,7 @@ function viewreference_autocomplete_validate($element, &$form_state, $form) {
+     preg_match($regex, $value, $matches);
+     if (!empty($matches)) {
+       $new_value = $matches[3] . ':' . $matches[5];
+-      $allowed = viewreference_get_views(FALSE, $field['settings']['referenceable_views']);
++      $allowed = viewreference_get_views(FALSE, $field['settings']);
+       if (!isset($allowed[$new_value])) {
+         form_error(
+           $element,
+@@ -356,7 +383,7 @@ function viewreference_autocomplete($bundle_name, $field_name, $string = '') {
+ 
+   $field = field_info_field($field_name);
+   $settings = $field['settings'];
+-  $matches = viewreference_get_views($settings['append_id'], $settings['referenceable_views'], FALSE, $string, FALSE, TRUE);
++  $matches = viewreference_get_views($settings['append_id'], $settings, FALSE, $string, FALSE, TRUE);
+   drupal_json_output($matches);
+ }
+ 
+@@ -364,7 +391,7 @@ function viewreference_autocomplete($bundle_name, $field_name, $string = '') {
+  * Implements hook_options_list().
+  */
+ function viewreference_options_list($field) {
+-  $references = viewreference_get_views($field['settings']['append_id'], $field['settings']['referenceable_views']);
++  $references = viewreference_get_views($field['settings']['append_id'], $field['settings']);
+   $options = array();
+   foreach ($references as $key => $value) {
+     $options[$key] = $value['rendered'];
+@@ -511,8 +538,8 @@ function theme_viewreference_formatter_path($variables) {
+  *
+  * @param $append_id
+  *   Whether to append the id to the returned display names.
+- * @param $filter
+- *   A list of IDs in the format view_name:display_key to restrict results by.
++ * @param $settings
++ *   If applying filters, the settings of the field.
+  * @param $full
+  *   If TRUE will return all the data, rather than just the title.
+  * @param $string
+@@ -525,17 +552,60 @@ function theme_viewreference_formatter_path($variables) {
+  * @return
+  *   The array of views.
+  */
+-function viewreference_get_views($append_id = FALSE, $filter = NULL, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
++function viewreference_get_views($append_id = FALSE, $settings = NULL, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
+   $views = array();
+   $loaded_views = views_get_all_views();
+-  $filter = $filter ? array_filter($filter) : NULL;
++
++  // Prepare filters.
++  if (!empty($settings['referenceable_views'])) {
++    $filters['ids'] = array_filter($settings['referenceable_views']);
++  }
++  if (!empty($settings['referenceable_tags']['allow'])) {
++    $filters['allow_tags'] = array_map('trim', explode(',', $settings['referenceable_tags']['allow']));
++  }
++  if (!empty($settings['referenceable_tags']['deny'])) {
++    $filters['deny_tags'] = array_map('trim', explode(',', $settings['referenceable_tags']['deny']));
++  }
++
+   foreach ((array)$loaded_views as $view_name => $view) {
++
++    // Prepare this view's tags.
++    $tags = array_map('trim', explode(',', $view->tag));
++
++    // Determine if there are allow tags
++    $has_allow_tag = FALSE;
++    if (!empty($tags) && !empty($filters['allow_tags'])) {
++      foreach ($tags as $tag) {
++        if (in_array($tag, $filters['allow_tags'])) {
++          $has_allow_tag = TRUE;
++          break;
++        }
++      }
++    }
++
++    // Determine if there are deny tags
++    $has_deny_tag = FALSE;
++    if (!empty($tags) && !empty($filters['deny_tags'])) {
++      foreach ($tags as $tag) {
++        if (in_array($tag, $filters['deny_tags'])) {
++          $has_deny_tag = TRUE;
++          break;
++        }
++      }
++    }
++
+     foreach ((array)$view->display as $display_key => $display) {
+       // Skip this one if it's a 'default' view.
+       if ($display_key != 'default') {
+         $id = $view_name . ':' . $display_key;
++
+         // Skip this one if it's not 'allowed'.
+-        if (empty($filter) || in_array($id, $filter)) {
++        if (
++             (
++               (!empty($filters['ids']) && in_array($id, $filters['ids'])) || $has_allow_tag || (empty($filters['ids']) && empty($filters['allow_tags']))
++             )
++             && !$has_deny_tag
++           ) {
+           // Get display title.
+           $theme_vars = array(
+             'view' => $view,
+@@ -744,7 +814,7 @@ function viewreference_select_process($element, $form_state, $form) {
+   $bundle = $instance['bundle'];
+   $settings = $field[$language]['field']['settings'];
+ 
+-  $options = viewreference_get_views($settings['append_id'], $settings['referenceable_views']);
++  $options = viewreference_get_views($settings['append_id'], $settings);
+   if (!$instance['required']) {
+     $options = array(0 => '<'. t('none') .'>') + $options;
+   }
