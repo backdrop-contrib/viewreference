@@ -74,6 +74,7 @@ function viewreference_field_info() {
           'label' => '!field_label ' . t('arguments'),
         ),
         'append_id' => 0,
+        'skip_default' => 1,
       ),
       'default_widget'    => 'viewreference_autocomplete',
       'default_formatter' => 'viewreference_default',
@@ -118,7 +119,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#description' => t('Select the Views that can be referenced. If no Views are selected here, and tags are not entered below, then all the Views will be available.'),
     '#multiple' => TRUE,
     '#default_value' => is_array($settings['referenceable_views']) ? $settings['referenceable_views'] : array(),
-    '#options' => viewreference_get_views($settings['append_id']),
+    '#options' => viewreference_get_views($settings['append_id'], $settings['skip_default']),
   );
   $form['referenceable_tags'] = array(
     '#type' => 'fieldset',
@@ -192,6 +193,11 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#default_value' => isset($settings['append_id']) ? $settings['append_id'] : 0,
     '#description' => t('It is possible for Views displays to have the same title, this option will append [view:view_display_n] in lists used by this field to disambiguate the options.'),
   );
+  $form['skip_default'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Exclude the master (default) display from lists.'),
+    '#default_value' => isset($settings['skip_default']) ? $settings['skip_default'] : 1,
+  );
   return $form;
 
 }
@@ -200,7 +206,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
  * Implements hook_field_validate().
  */
 function viewreference_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
-  $views = viewreference_get_views($field['settings']['append_id'], $field['settings']);
+  $views = viewreference_get_views($field['settings']['append_id'], $field['settings']['skip_default'], $field['settings']);
   foreach ($items as $delta => $item) {
     if (is_array($item)) {
       if (!empty($item['view_id'])) {
@@ -290,7 +296,7 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
     if (!empty($element['#default_value'][$field_key])) {
       $field_name = $element['#parents'][0];
       $field = field_info_field($field_name);
-      $views = viewreference_get_views(TRUE, array('referenceable_views' => array($element['#default_value'][$field_key])));
+      $views = viewreference_get_views(TRUE, $field['settings']['skip_default'], array('referenceable_views' => array($element['#default_value'][$field_key])));
       $value = $views[$element['#default_value'][$field_key]];
       return array($field_key => $value, $args_key => $element['#default_value'][$args_key]);
     }
@@ -319,7 +325,7 @@ function viewreference_autocomplete_validate($element, &$form_state, $form) {
     preg_match($regex, $value, $matches);
     if (!empty($matches)) {
       $new_value = $matches[3] . ':' . $matches[5];
-      $allowed = viewreference_get_views(FALSE, $field['settings']);
+      $allowed = viewreference_get_views(FALSE, $field['settings']['skip_default'], $field['settings']);
       if (!isset($allowed[$new_value])) {
         form_error(
           $element,
@@ -383,7 +389,7 @@ function viewreference_autocomplete($bundle_name, $field_name, $string = '') {
 
   $field = field_info_field($field_name);
   $settings = $field['settings'];
-  $matches = viewreference_get_views($settings['append_id'], $settings, FALSE, $string, FALSE, TRUE);
+  $matches = viewreference_get_views($settings['append_id'], $settings['skip_default'], $settings, FALSE, $string, FALSE, TRUE);
   drupal_json_output($matches);
 }
 
@@ -391,7 +397,7 @@ function viewreference_autocomplete($bundle_name, $field_name, $string = '') {
  * Implements hook_options_list().
  */
 function viewreference_options_list($field) {
-  $references = viewreference_get_views($field['settings']['append_id'], $field['settings']);
+  $references = viewreference_get_views($field['settings']['append_id'], $field['settings']['skip_default'], $field['settings']);
   $options = array();
   foreach ($references as $key => $value) {
     $options[$key] = $value['rendered'];
@@ -538,6 +544,8 @@ function theme_viewreference_formatter_path($variables) {
  *
  * @param $append_id
  *   Whether to append the id to the returned display names.
+ * @param $skip_default
+ *   Whether to omit default/master displays.
  * @param $settings
  *   If applying filters, the settings of the field.
  * @param $full
@@ -552,7 +560,7 @@ function theme_viewreference_formatter_path($variables) {
  * @return
  *   The array of views.
  */
-function viewreference_get_views($append_id = FALSE, $settings = NULL, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
+function viewreference_get_views($append_id = FALSE, $skip_default = TRUE, $settings = NULL, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
   $views = array();
   $loaded_views = views_get_all_views();
 
@@ -595,8 +603,8 @@ function viewreference_get_views($append_id = FALSE, $settings = NULL, $full = F
     }
 
     foreach ((array)$view->display as $display_key => $display) {
-      // Skip this one if it's a 'default' view.
-      if ($display_key != 'default') {
+      // Skip this one if it's a 'default' view and we're skipping defaults.
+      if ($display_key != 'default' || !$skip_default) {
         $id = $view_name . ':' . $display_key;
 
         // Skip this one if it's not 'allowed'.
@@ -814,7 +822,7 @@ function viewreference_select_process($element, $form_state, $form) {
   $bundle = $instance['bundle'];
   $settings = $field[$language]['field']['settings'];
 
-  $options = viewreference_get_views($settings['append_id'], $settings);
+  $options = viewreference_get_views($settings['append_id'], $settings['skip_default'], $settings);
   if (!$instance['required']) {
     $options = array(0 => '<'. t('none') .'>') + $options;
   }
