@@ -479,7 +479,7 @@ function viewreference_get_view($element, $params = array()) {
         $view['contextual'] = '';
         if (module_exists('contextual')) {
           $contextual = contextual_element_info();
-          views_add_contextual_links($contextual['contextual_links'], 'view', $view['view'], $view['display']);
+          views_add_contextual_links($contextual['contextual_links'], 'special_block_-exp', $view['view'], $view['display']);
           if (!empty($contextual['contextual_links']['#contextual_links'])) {
             $view['contextual'] = drupal_render($contextual['contextual_links']);
           }
