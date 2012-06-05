@@ -435,6 +435,8 @@ function viewreference_views_display_title($view_name, $view, $display) {
  *     'embed' - The $view->preview() of the view display
  *     'title' - The display title of the view display
  *     'link' - A link to the view display, or the title if link not available.
+ *     'path' - The path to the view display, or the title if path not available.
+ *     'contextual' - The contextual links.
  * @return
  *   The array of useful data about the view.
  */
@@ -472,6 +474,18 @@ function viewreference_get_view($element, $params = array()) {
           }
         }
       }
+
+      if (in_array('contextual', $params)) {
+        $view['contextual'] = '';
+        if (module_exists('contextual')) {
+          $contextual = contextual_element_info();
+          views_add_contextual_links($contextual['contextual_links'], 'view', $view['view'], $view['display']);
+          if (!empty($contextual['contextual_links']['#contextual_links'])) {
+            $view['contextual'] = drupal_render($contextual['contextual_links']);
+          }
+        }
+      }
+
       $_GET['q'] = $q;
       return $view;
     }
@@ -484,7 +498,8 @@ function viewreference_get_view($element, $params = array()) {
 function theme_viewreference_formatter_default($variables) {
   $element = &$variables['element'];
   $output = '';
-  if ($view = viewreference_get_view($element, array('embed'))) {
+  if ($view = viewreference_get_view($element, array('contextual', 'embed'))) {
+    $output .= $view['contextual'];
     $output .= $view['embed'];
   }
   return $output;
@@ -496,8 +511,9 @@ function theme_viewreference_formatter_default($variables) {
 function theme_viewreference_formatter_full($variables) {
   $element = &$variables['element'];
   $output = '';
-  if ($view = viewreference_get_view($element, array('title', 'embed'))) {
+  if ($view = viewreference_get_view($element, array('contextual', 'title', 'embed'))) {
     $output .= '<h3 class="title viewreference-title">' . $view['title'] . '</h3>';
+    $output .= $view['contextual'];
     $output .= $view['embed'];
   }
   return $output;
