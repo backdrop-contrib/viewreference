@@ -75,6 +75,7 @@ function viewreference_field_info() {
         ),
         'append_id' => 0,
         'skip_default' => 1,
+        'skip_empty' => 0,
       ),
       'default_widget'    => 'viewreference_autocomplete',
       'default_formatter' => 'viewreference_default',
@@ -197,6 +198,11 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#type' => 'checkbox',
     '#title' => t('Exclude the master (default) display from lists.'),
     '#default_value' => isset($settings['skip_default']) ? $settings['skip_default'] : 1,
+  );
+  $form['skip_empty'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Do not output view if no rows are detected'),
+    '#default_value' => isset($settings['skip_empty']) ? $settings['skip_empty'] : 0,
   );
   return $form;
 
@@ -449,12 +455,15 @@ function viewreference_get_view($element, $params = array()) {
     if ($view['view'] && $view['view']->access($view['display'])) {
       // Save $_GET['q'] so it can be restored before returning from this function.
       $q = $_GET['q'];
-      if (in_array('embed', $params)) {
+      if (in_array('embed', $params) || !empty($element['field']['settings']['skip_empty'])) {
         $view['args'] = viewreference_get_element_args($element);
         if (!empty($view['args'])) {
           $_GET['q'] .= '/' . implode('/', $view['args']);
         }
         $view['embed'] = $view['view']->preview($view['display'], $view['args']);
+        if (!empty($element['field']['settings']['skip_empty']) && empty($view['view']->result)) {
+          return FALSE;
+        }
       }
       if (in_array('title', $params) || in_array('link', $params)) {
         $view['title'] = theme('viewreference_display_title', $view);
@@ -499,8 +508,10 @@ function theme_viewreference_formatter_default($variables) {
   $element = &$variables['element'];
   $output = '';
   if ($view = viewreference_get_view($element, array('contextual', 'embed'))) {
+    $output .= '<div class="contextual-links-region">';
     $output .= $view['contextual'];
     $output .= $view['embed'];
+    $output .= '</div>';
   }
   return $output;
 }
@@ -512,9 +523,11 @@ function theme_viewreference_formatter_full($variables) {
   $element = &$variables['element'];
   $output = '';
   if ($view = viewreference_get_view($element, array('contextual', 'title', 'embed'))) {
+    $output .= '<div class="contextual-links-region">';
     $output .= '<h3 class="title viewreference-title">' . $view['title'] . '</h3>';
     $output .= $view['contextual'];
     $output .= $view['embed'];
+    $output .= '</div>';
   }
   return $output;
 }
