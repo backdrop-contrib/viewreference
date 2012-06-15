@@ -288,6 +288,10 @@ function viewreference_field_formatter_view($entity_type, $entity, $field, $inst
         'display' => &$display,
       ),
     );
+    $element[$delta]['#element']['view'] = viewreference_get_view($element[$delta]['#element']);
+    if (!$element[$delta]['#element']['view']) {
+      unset($element[$delta]);
+    }
   }
   return $element;
 }
@@ -448,14 +452,19 @@ function viewreference_views_display_title($view_name, $view, $display) {
  */
 function viewreference_get_view($element, $params = array()) {
   if (!empty($element['item']['view_id'])) {
-    $view_id_parts = explode(':', $element['item']['view_id']);
-    $view['name'] = $view_id_parts[0];
-    $view['display'] = $view_id_parts[1];
-    $view['view'] = views_get_view($view['name']);
+    if (!empty($element['view'])) {
+      $view = $element['view'];
+    }
+    if (empty($view['view']) || empty($view['display']) || empty($view['name'])) {
+      $view_id_parts = explode(':', $element['item']['view_id']);
+      $view['name'] = $view_id_parts[0];
+      $view['display'] = $view_id_parts[1];
+      $view['view'] = views_get_view($view['name']);
+    }
     if ($view['view'] && $view['view']->access($view['display'])) {
       // Save $_GET['q'] so it can be restored before returning from this function.
       $q = $_GET['q'];
-      if (in_array('embed', $params) || !empty($element['field']['settings']['skip_empty'])) {
+      if (empty($view['embed']) && (in_array('embed', $params) || !empty($element['field']['settings']['skip_empty']))) {
         $view['args'] = viewreference_get_element_args($element);
         if (!empty($view['args'])) {
           $_GET['q'] .= '/' . implode('/', $view['args']);
@@ -465,9 +474,9 @@ function viewreference_get_view($element, $params = array()) {
           return FALSE;
         }
       }
-      if (in_array('title', $params) || in_array('link', $params)) {
+      if ((in_array('title', $params) && empty($view['title'])) || (in_array('link', $params) && empty($view['link']))) {
         $view['title'] = theme('viewreference_display_title', $view);
-        if (in_array('link', $params)) {
+        if (in_array('link', $params) && empty($view['link'])) {
           $disabled = isset($view['view']->disabled) ? $view['view']->disabled:  FALSE;
           if (isset($view['view']->display[$view['display']]->display_options['path']) && !$disabled) {
             $view['args'] = isset($view['args']) ? $view['args'] : viewreference_get_element_args($element);
@@ -484,7 +493,7 @@ function viewreference_get_view($element, $params = array()) {
         }
       }
 
-      if (in_array('contextual', $params)) {
+      if (in_array('contextual', $params) && empty($view['contextual'])) {
         $view['contextual'] = '';
         if (module_exists('contextual')) {
           $contextual = contextual_element_info();
