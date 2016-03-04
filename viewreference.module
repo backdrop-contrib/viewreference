@@ -697,7 +697,7 @@ function theme_viewreference_display_title($variables) {
   extract($variables);
 
   $view->set_display($display_key);
-  $display_title = $view->get_title();
+  $display_title = $view->display_handler->options['title'];
 
   if (!$display_title) {
     // No title, we have to construct a title.
