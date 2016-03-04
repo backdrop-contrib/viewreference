@@ -476,6 +476,7 @@ function viewreference_get_view($element, $params = array()) {
         }
       }
       if ((in_array('title', $params) && empty($view['title'])) || (in_array('link', $params) && empty($view['link']))) {
+        $view['display_key'] = $view['display'];
         $view['title'] = theme('viewreference_display_title', $view);
         if (in_array('link', $params) && empty($view['link'])) {
           $disabled = isset($view['view']->disabled) ? $view['view']->disabled:  FALSE;
