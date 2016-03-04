@@ -862,15 +862,13 @@ function viewreference_element_info() {
  * @see viewreference_element_info().
  */
 function viewreference_select_process($element, $form_state, $form) {
-  $field_name = $element['#parents'][0];
-  $language = $element['#parents'][1];
-  $field_state = field_form_get_state($element['#field_parents'], $field_name, $language, $form_state);
+  $field_parents = $element['#field_parents'];
+  $field_name = $element['#field_name'];
+  $language = $element['#language'];
+  $field_state = field_form_get_state($field_parents, $field_name, $language, $form_state);
   $field = $field_state['field'];
   $instance = $field_state['instance'];
-  $field = $form_state['field'][$field_name];
-  $instance = $field[$language]['instance'];
-  $bundle = $instance['bundle'];
-  $settings = $field[$language]['field']['settings'];
+  $settings = $field['settings'];
 
   $options = viewreference_get_views($settings['append_id'], $settings['skip_default'], $settings);
   if (!$instance['required']) {
@@ -885,7 +883,7 @@ function viewreference_select_process($element, $form_state, $form) {
     '#field_name' => $field_name,
     '#delta' => $element['#delta'],
     '#columns' => $element['#columns'],
-    '#title' => $instance['label'],
+    '#title' => $element['#title'],
     '#required' => $instance['required'],
     '#description' => isset($instance['description']) ? $instance['description'] : NULL,
   );
@@ -901,8 +899,6 @@ function viewreference_select_process($element, $form_state, $form) {
       '#language' => $language,
       '#delta' => $element['#delta'],
       '#columns' => $element['#columns'],
-      //'#required' => $element['#required'],
-      //'#description' => isset($element['#description']) ? $element['#description'] : NULL,
     );
   }
 
@@ -915,15 +911,14 @@ function viewreference_select_process($element, $form_state, $form) {
  * @see viewreference_element_info().
  */
 function viewreference_autocomplete_process($element, $form_state, $form) {
-  $field_name = $element['#parents'][0];
-  $language = $element['#parents'][1];
-  $field_state = field_form_get_state($element['#field_parents'], $field_name, $language, $form_state);
+  $field_parents = $element['#field_parents'];
+  $field_name = $element['#field_name'];
+  $language = $element['#language'];
+  $field_state = field_form_get_state($field_parents, $field_name, $language, $form_state);
   $field = $field_state['field'];
   $instance = $field_state['instance'];
-  $field = $form_state['field'][$field_name];
-  $instance = $field[$language]['instance'];
   $bundle = $instance['bundle'];
-  $settings = $field[$language]['field']['settings'];
+  $settings = $field['settings'];
 
   $element[$element['#columns'][0]] = array(
     '#type' => 'textfield',
@@ -934,7 +929,7 @@ function viewreference_autocomplete_process($element, $form_state, $form) {
     '#language' => $language,
     '#delta' => $element['#delta'],
     '#columns' => $element['#columns'],
-    '#title' => $instance['label'],
+    '#title' => $element['#title'],
     '#required' => $element['#required'],
     '#description' => isset($element['#description']) ? $element['#description'] : '',
   );
@@ -955,16 +950,4 @@ function viewreference_autocomplete_process($element, $form_state, $form) {
   return $element;
 }
 
-/*
 
-  Views field exposure code from D6.  Don't know where to put this.'
-  Used to be in viewreference_field_settings() when $op was 'views data'.
-
-      $data = content_views_field_views_data($field);
-      $db_info = content_database_info($field);
-      $table_alias = content_views_tablename($field);
-      // Swap the filter handler to the 'in' operator.
-      $data[$table_alias][$field['field_name'] . '_view_id']['filter']['handler'] = 'views_handler_filter_many_to_one_content';
-      return $data;
-
-*/
