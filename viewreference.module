@@ -589,26 +589,43 @@ function theme_viewreference_formatter_path($variables) {
 /**
  * Get an array of views.
  *
- * @param $append_id
+ * @param bool $append_id
  *   Whether to append the id to the returned display names.
- * @param $skip_default
+ * @param bool $skip_default
  *   Whether to omit default/master displays.
- * @param $settings
+ * @param array $settings
  *   If applying filters, the settings of the field.
- * @param $full
+ * @param bool $full
  *   If TRUE will return all the data, rather than just the title.
- * @param $string
+ * @param string $string
  *   String to match against the title to filter results by.
- * @param $exact_string
+ * @param bool $exact_string
  *   If TRUE the $string parameter must match exactly.
- * @param $long_key
+ * @param bool $long_key
  *   If TRUE will key array by the title and ID, not just the ID.
  *
- * @return
- *   The array of views.
+ * @return mixed[]
+ *   The array of views. The array value type depends on the parameters.
  */
 function viewreference_get_views($append_id = FALSE, $skip_default = TRUE, $settings = NULL, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
-  $views = array();
+  /** @var views_display[] $views_displays */
+  $views_displays = _viewreference_get_applicable_views_displays($settings, $skip_default);
+  return _viewreference_extract_views_displays($views_displays, $append_id, $full, $string, $exact_string, $long_key);
+}
+
+/**
+ * @param array $settings
+ *   If applying filters, the settings of the field.
+ * @param bool $skip_default
+ *   Whether to omit default/master displays.
+ *
+ * @return array[]
+ *   An array where the keys are views machine names, and each value is an array
+ *   of the format array($view, $applicable_displays), where the first element
+ *   is a view, and the second element is an array of views displays.
+ */
+function _viewreference_get_applicable_views_displays($settings, $skip_default) {
+
   $loaded_views = views_get_all_views();
 
   // Prepare filters.
@@ -622,6 +639,7 @@ function viewreference_get_views($append_id = FALSE, $skip_default = TRUE, $sett
     $filters['deny_tags'] = array_map('trim', explode(',', $settings['referenceable_tags']['deny']));
   }
 
+  $applicable_views_displays = array();
   foreach ((array)$loaded_views as $view_name => $view) {
 
     // Prepare this view's tags.
@@ -649,43 +667,93 @@ function viewreference_get_views($append_id = FALSE, $skip_default = TRUE, $sett
       }
     }
 
+    // Skip the entire view, if there is a deny tag.
+    if ($has_deny_tag) {
+      continue;
+    }
+
+    $allow_all = $has_allow_tag
+      || (empty($filters['ids']) && empty($filters['allow_tags']));
+
+    $applicable_displays = array();
     foreach ((array)$view->display as $display_key => $display) {
       // Skip this one if it's a 'default' view and we're skipping defaults.
-      if ($display_key != 'default' || !$skip_default) {
-        $id = $view_name . ':' . $display_key;
+      if ($display_key === 'default' && $skip_default) {
+        continue;
+      }
 
-        // Skip this one if it's not 'allowed'.
-        if (
-             (
-               (!empty($filters['ids']) && in_array($id, $filters['ids'])) || $has_allow_tag || (empty($filters['ids']) && empty($filters['allow_tags']))
-             )
-             && !$has_deny_tag
-           ) {
-          // Get display title.
-          $theme_vars = array(
-            'view' => $view,
-            'view_name' => $view_name,
-            'display_key' => $display_key,
-            'append_id' => $append_id,
-          );
-          $display_title = theme('viewreference_display_title', $theme_vars);
-          // Determine whether and what to return.
-          $key = $long_key ? $display_title . ($append_id ? '' : ' [' . $id . ']') : $id;
-          if ($string) {
-            if (!$exact_string && (stripos($display_title, $string) !== FALSE || stripos($key, $string) !== FALSE)) {
-              $views[$key] = $full ? $display : $display_title;
-            }
-            elseif ($display_title == $string) {
-              $views[$key] = $full ? $display : $display_title;
-            }
-          }
-          else {
-            $views[$key] = $full ? $display : $display_title;
-          }
+      if ($allow_all) {
+        $applicable_displays[$display_key] = $display;
+        continue;
+      }
+
+      // Skip this one if it's not 'allowed'.
+      $id = $view_name . ':' . $display_key;
+      if (!empty($filters['ids']) && in_array($id, $filters['ids'])) {
+        $applicable_displays[$display_key] = $display;
+      }
+    }
+
+    if (!empty($applicable_displays)) {
+      $applicable_views_displays[$view_name] = array($view, $applicable_displays);
+    }
+  }
+
+  return $applicable_views_displays;
+}
+
+/**
+ * Get an array of views.
+ *
+ * @param views_display[] $views_displays
+ * @param bool $append_id
+ *   Whether to append the id to the returned display names.
+ * @param bool $full
+ *   If TRUE will return all the data, rather than just the title.
+ * @param string $string
+ *   String to match against the title to filter results by.
+ * @param bool $exact_string
+ *   If TRUE the $string parameter must match exactly.
+ * @param bool $long_key
+ *   If TRUE will key array by the title and ID, not just the ID.
+ *
+ * @return mixed[]
+ *   The array of views.
+ */
+function _viewreference_extract_views_displays($views_displays, $append_id = FALSE, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
+
+  $views = array();
+  foreach ($views_displays as $view_name => $view_and_displays) {
+    list($view, $view_displays) = $view_and_displays;
+
+    /** @var views_display $display */
+    foreach ($view_displays as $display_key => $display) {
+      $id = $view_name . ':' . $display_key;
+
+      // Get display title.
+      $theme_vars = array(
+        'view' => $view,
+        'view_name' => $view_name,
+        'display_key' => $display_key,
+        'append_id' => $append_id,
+      );
+      $display_title = theme('viewreference_display_title', $theme_vars);
+      // Determine whether and what to return.
+      $key = $long_key ? $display_title . ($append_id ? '' : ' [' . $id . ']') : $id;
+      if ($string) {
+        if (!$exact_string && (stripos($display_title, $string) !== FALSE || stripos($key, $string) !== FALSE)) {
+          $views[$key] = $full ? $display : $display_title;
         }
+        elseif ($display_title == $string) {
+          $views[$key] = $full ? $display : $display_title;
+        }
+      }
+      else {
+        $views[$key] = $full ? $display : $display_title;
       }
     }
   }
+
   return $views;
 }
 
@@ -693,7 +761,7 @@ function viewreference_get_views($append_id = FALSE, $skip_default = TRUE, $sett
  * Theme the display title for this view display.
  *
  * @param $variables
-    An array of arguments that will be extracted to the following variables:
+An array of arguments that will be extracted to the following variables:
  *    $view - The view object.
  *    $view_name - The name of the view.
  *    $display_key - The name of the display to use.
@@ -711,6 +779,10 @@ function theme_viewreference_display_title($variables) {
   if (!$display_title) {
     // No title, we have to construct a title.
     $display_title = ucfirst($view_name) . ' ' . strtolower($view->display[$display_key]->display_title);
+  }
+
+  if (isset($view->display[$display_key]->display_title)) {
+    $display_title .= ' - ' . $view->display[$display_key]->display_title;
   }
 
   if ($append_id) {
@@ -870,7 +942,7 @@ function viewreference_select_process($element, $form_state, $form) {
   $instance = $field_state['instance'];
   $settings = $field['settings'];
 
-  $options = viewreference_get_views($settings['append_id'], $settings['skip_default'], $settings);
+  $options = _viewreference_select_widget_options($settings, $settings['skip_default']);
   if (!$instance['required']) {
     $options = array(0 => '<'. t('none') .'>') + $options;
   }
@@ -903,6 +975,33 @@ function viewreference_select_process($element, $form_state, $form) {
   }
 
   return $element;
+}
+
+/**
+ * @return array[]
+ */
+function _viewreference_select_widget_options($settings, $skip_default) {
+  $options = array();
+  foreach (_viewreference_get_applicable_views_displays($settings, $skip_default) as $view_key => $view_and_displays) {
+    list($view, $view_displays) = $view_and_displays;
+    $view_optgroup_key = $view_key;
+    $view_title = $view->get_title();
+    if (!empty($view_title)) {
+      $view_optgroup_key .= ' (' . $view_title . ')';
+    }
+    foreach ($view_displays as $display_key => $display) {
+      $option_key = $view_key . ':' . $display_key;
+      $option_title = $display_key;
+      if (!empty($display->display_title)) {
+        $option_title .= ' (' . $display->display_title . ')';
+      }
+      $options[$view_optgroup_key][$option_key] = $option_title;
+    }
+    ksort($options[$view_optgroup_key]);
+  }
+  ksort($options);
+
+  return $options;
 }
 
 /**
@@ -949,5 +1048,6 @@ function viewreference_autocomplete_process($element, $form_state, $form) {
 
   return $element;
 }
+
 
 
