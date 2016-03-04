@@ -304,9 +304,10 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
     $field_key = $element['#columns'][0];
     $args_key = $element['#columns'][1];
     if (!empty($element['#default_value'][$field_key])) {
-      $field_name = $element['#parents'][0];
+      $field_name = $element['#field_name'];
       $field = field_info_field($field_name);
-      $views = viewreference_get_views(TRUE, $field['settings']['skip_default'], array('referenceable_views' => array($element['#default_value'][$field_key])));
+      $skip_default = isset($field['settings']['skip_default']) ? $field['settings']['skip_default'] : FALSE;
+      $views = viewreference_get_views(TRUE, $skip_default, array('referenceable_views' => array($element['#default_value'][$field_key])));
       $value = $views[$element['#default_value'][$field_key]];
       return array($field_key => $value, $args_key => $element['#default_value'][$args_key]);
     }
@@ -853,14 +854,16 @@ function viewreference_element_info() {
  * @see viewreference_element_info().
  */
 function viewreference_select_process($element, $form_state, $form) {
-  $field_name = $element['#parents'][0];
-  $language = $element['#parents'][1];
+  $field_name = $element['#field_name'];
+  $language = $element['#language'];
   $field = $form_state['field'][$field_name];
   $instance = $field[$language]['instance'];
   $bundle = $instance['bundle'];
   $settings = $field[$language]['field']['settings'];
+  $skip_default = isset($settings['skip_default']) ? $settings['skip_default'] : FALSE;
+  $append_id = isset($settings['append_id']) ? $settings['append_id'] : FALSE;
 
-  $options = viewreference_get_views($settings['append_id'], $settings['skip_default'], $settings);
+  $options = viewreference_get_views($append_id, $skip_default, $settings);
   if (!$instance['required']) {
     $options = array(0 => '<'. t('none') .'>') + $options;
   }
@@ -878,7 +881,7 @@ function viewreference_select_process($element, $form_state, $form) {
     '#description' => isset($instance['description']) ? $instance['description'] : NULL,
   );
 
-  if ($settings['arguments']['dsv_arguments'] || $settings['arguments']['php_arguments']) {
+  if (!empty($settings['arguments']['dsv_arguments']) || !empty($settings['arguments']['php_arguments'])) {
     $element[$element['#columns'][1]] = array(
       '#type' => ($settings['arguments']['rows'] == 1 ? 'textfield' : 'textarea'),
       '#default_value' => isset($element['#value'][$element['#columns'][1]]) ? $element['#value'][$element['#columns'][1]] : '',
@@ -903,8 +906,8 @@ function viewreference_select_process($element, $form_state, $form) {
  * @see viewreference_element_info().
  */
 function viewreference_autocomplete_process($element, $form_state, $form) {
-  $field_name = $element['#parents'][0];
-  $language = $element['#parents'][1];
+  $field_name = $element['#field_name'];
+  $language = $element['#language'];
   $field = $form_state['field'][$field_name];
   $instance = $field[$language]['instance'];
   $bundle = $instance['bundle'];
@@ -924,7 +927,7 @@ function viewreference_autocomplete_process($element, $form_state, $form) {
     '#description' => isset($element['#description']) ? $element['#description'] : '',
   );
 
-  if ($settings['arguments']['dsv_arguments'] || $settings['arguments']['php_arguments']) {
+  if (!empty($settings['arguments']['dsv_arguments']) || !empty($settings['arguments']['php_arguments'])) {
     $element[$element['#columns'][1]] = array(
       '#type' => ($settings['arguments']['rows'] == 1 ? 'textfield' : 'textarea'),
       '#default_value' => isset($element['#value'][$element['#columns'][1]]) ? $element['#value'][$element['#columns'][1]] : '',
