@@ -471,7 +471,11 @@ function viewreference_get_view($element, $params = array()) {
           $_GET['q'] .= '/' . implode('/', $view['args']);
         }
         $view['embed'] = $view['view']->preview($view['display'], $view['args']);
+        // If the view is empty and the viewreference field is configured with
+        // "skip empty views" enabled, skip outputting the view.
         if (!empty($element['field']['settings']['skip_empty']) && empty($view['view']->result)) {
+          // Restore $_GET['q'] before skipping the view.
+          $_GET['q'] = $q;
           return FALSE;
         }
       }
