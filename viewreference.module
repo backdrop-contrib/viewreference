@@ -120,7 +120,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#description' => t('Select the Views that can be referenced. If no Views are selected here, and tags are not entered below, then all the Views will be available.'),
     '#multiple' => TRUE,
     '#default_value' => is_array($settings['referenceable_views']) ? $settings['referenceable_views'] : array(),
-    '#options' => viewreference_get_views($settings['append_id'], $settings),
+    '#options' => viewreference_get_views($settings['append_id']), // This call doesn't supply $settings, so they aren't filtered.
   );
   $form['referenceable_tags'] = array(
     '#type' => 'fieldset',
@@ -213,7 +213,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
   );
   $form['sort_views'] = array(
     '#type' => 'checkbox',
-    '#title' => t('Sort the views'),
+    '#title' => t('Sort the views by title'),
     '#default_value' => isset($settings['sort_views']) ? $settings['sort_views'] : 1,
   );
   return $form;
@@ -476,18 +476,18 @@ function viewreference_get_view($element, $params = array()) {
     }
     if ($view['view'] && $view['view']->access($view['display'])) {
       // Save $_GET['q'] so it can be restored before returning from this function.
-      $q = $_GET['q'];
+      //$q = $_GET['q'];
       if (empty($view['embed']) && (in_array('embed', $params) || !empty($element['field']['settings']['skip_empty']))) {
         $view['args'] = viewreference_get_element_args($element);
-        if (!empty($view['args'])) {
-          $_GET['q'] .= '/' . implode('/', $view['args']);
-        }
+        //if (!empty($view['args'])) {
+        //  $_GET['q'] .= '/' . implode('/', $view['args']);
+        //}
         $view['embed'] = $view['view']->preview($view['display'], $view['args']);
         // If the view is empty and the viewreference field is configured with
         // "skip empty views" enabled, skip outputting the view.
         if (!empty($element['field']['settings']['skip_empty']) && empty($view['view']->result)) {
           // Restore $_GET['q'] before skipping the view.
-          $_GET['q'] = $q;
+          //$_GET['q'] = $q;
           return FALSE;
         }
       }
@@ -522,7 +522,7 @@ function viewreference_get_view($element, $params = array()) {
         }
       }
 
-      $_GET['q'] = $q;
+      //$_GET['q'] = $q;
       return $view;
     }
   }
