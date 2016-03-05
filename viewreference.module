@@ -120,7 +120,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#description' => t('Select the Views that can be referenced. If no Views are selected here, and tags are not entered below, then all the Views will be available.'),
     '#multiple' => TRUE,
     '#default_value' => is_array($settings['referenceable_views']) ? $settings['referenceable_views'] : array(),
-    '#options' => viewreference_get_views($settings['append_id'], $settings['skip_default']),
+    '#options' => viewreference_get_views($settings['append_id'], $settings),
   );
   $form['referenceable_tags'] = array(
     '#type' => 'fieldset',
@@ -206,6 +206,16 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#title' => t('Do not output view if no rows are detected'),
     '#default_value' => isset($settings['skip_empty']) ? $settings['skip_empty'] : 0,
   );
+  $form['skip_disabled'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Do not allow selection of disabled views'),
+    '#default_value' => isset($settings['skip_disabled']) ? $settings['skip_disabled'] : 0,
+  );
+  $form['sort_views'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Sort the views'),
+    '#default_value' => isset($settings['sort_views']) ? $settings['sort_views'] : 1,
+  );
   return $form;
 
 }
@@ -214,7 +224,7 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
  * Implements hook_field_validate().
  */
 function viewreference_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
-  $views = viewreference_get_views($field['settings']['append_id'], $field['settings']['skip_default'], $field['settings']);
+  $views = viewreference_get_views($field['settings']['append_id'], $field['settings']);
   foreach ($items as $delta => $item) {
     if (is_array($item)) {
       if (!empty($item['view_id'])) {
@@ -308,7 +318,9 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
     if (!empty($element['#default_value'][$field_key])) {
       $field_name = $element['#parents'][0];
       $field = field_info_field($field_name);
-      $views = viewreference_get_views(TRUE, $field['settings']['skip_default'], array('referenceable_views' => array($element['#default_value'][$field_key])));
+      $settings = $field['settings'];
+      $settings['referenceable_views'] = array($element['#default_value'][$field_key]);
+      $views = viewreference_get_views(TRUE, $settings);
       $value = $views[$element['#default_value'][$field_key]];
       return array($field_key => $value, $args_key => $element['#default_value'][$args_key]);
     }
@@ -336,7 +348,7 @@ function viewreference_autocomplete_validate($element, &$form_state, $form) {
     preg_match($regex, $value, $matches);
     if (!empty($matches)) {
       $new_value = $matches[3] . ':' . $matches[5];
-      $allowed = viewreference_get_views(FALSE, $field['settings']['skip_default'], $field['settings']);
+      $allowed = viewreference_get_views(FALSE, $field['settings']);
       if (!isset($allowed[$new_value])) {
         form_error(
           $element,
@@ -400,7 +412,7 @@ function viewreference_autocomplete($bundle_name, $field_name, $string = '') {
 
   $field = field_info_field($field_name);
   $settings = $field['settings'];
-  $matches = viewreference_get_views($settings['append_id'], $settings['skip_default'], $settings, FALSE, $string, FALSE, TRUE);
+  $matches = viewreference_get_views($settings['append_id'], $settings, FALSE, $string, FALSE, TRUE);
   drupal_json_output($matches);
 }
 
@@ -408,7 +420,7 @@ function viewreference_autocomplete($bundle_name, $field_name, $string = '') {
  * Implements hook_options_list().
  */
 function viewreference_options_list($field) {
-  $references = viewreference_get_views($field['settings']['append_id'], $field['settings']['skip_default'], $field['settings']);
+  $references = viewreference_get_views($field['settings']['append_id'], $field['settings']);
   $options = array();
   foreach ($references as $key => $value) {
     $options[$key] = $value['rendered'];
@@ -588,10 +600,8 @@ function theme_viewreference_formatter_path($variables) {
  *
  * @param bool $append_id
  *   Whether to append the id to the returned display names.
- * @param bool $skip_default
- *   Whether to omit default/master displays.
  * @param array $settings
- *   If applying filters, the settings of the field.
+ *   The settings of the field.
  * @param bool $full
  *   If TRUE will return all the data, rather than just the title.
  * @param string $string
@@ -604,24 +614,22 @@ function theme_viewreference_formatter_path($variables) {
  * @return mixed[]
  *   The array of views. The array value type depends on the parameters.
  */
-function viewreference_get_views($append_id = FALSE, $skip_default = TRUE, $settings = NULL, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
+function viewreference_get_views($append_id = FALSE, $settings = NULL, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
   /** @var views_display[] $views_displays */
-  $views_displays = _viewreference_get_applicable_views_displays($settings, $skip_default);
-  return _viewreference_extract_views_displays($views_displays, $append_id, $full, $string, $exact_string, $long_key);
+  $views_displays = _viewreference_get_applicable_views_displays($settings);
+  return _viewreference_extract_views_displays($settings, $views_displays, $append_id, $full, $string, $exact_string, $long_key);
 }
 
 /**
  * @param array $settings
  *   If applying filters, the settings of the field.
- * @param bool $skip_default
- *   Whether to omit default/master displays.
  *
  * @return array[]
  *   An array where the keys are views machine names, and each value is an array
  *   of the format array($view, $applicable_displays), where the first element
  *   is a view, and the second element is an array of views displays.
  */
-function _viewreference_get_applicable_views_displays($settings, $skip_default) {
+function _viewreference_get_applicable_views_displays($settings) {
 
   $loaded_views = views_get_all_views();
 
@@ -638,6 +646,11 @@ function _viewreference_get_applicable_views_displays($settings, $skip_default) 
 
   $applicable_views_displays = array();
   foreach ((array)$loaded_views as $view_name => $view) {
+
+    // Limit views to active views
+    if (!empty($settings['skip_disabled']) && $view->disabled) {
+      continue;
+    }
 
     // Prepare this view's tags.
     $tags = array_map('trim', explode(',', $view->tag));
@@ -675,7 +688,7 @@ function _viewreference_get_applicable_views_displays($settings, $skip_default) 
     $applicable_displays = array();
     foreach ((array)$view->display as $display_key => $display) {
       // Skip this one if it's a 'default' view and we're skipping defaults.
-      if ($display_key === 'default' && $skip_default) {
+      if ($display_key === 'default' && $settings['skip_default']) {
         continue;
       }
 
@@ -702,6 +715,8 @@ function _viewreference_get_applicable_views_displays($settings, $skip_default) 
 /**
  * Get an array of views.
  *
+ * @param array $settings
+ *   The settings of the field.
  * @param views_display[] $views_displays
  * @param bool $append_id
  *   Whether to append the id to the returned display names.
@@ -717,7 +732,7 @@ function _viewreference_get_applicable_views_displays($settings, $skip_default) 
  * @return mixed[]
  *   The array of views.
  */
-function _viewreference_extract_views_displays($views_displays, $append_id = FALSE, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
+function _viewreference_extract_views_displays($settings, $views_displays, $append_id = FALSE, $full = FALSE, $string = '', $exact_string = FALSE, $long_key = FALSE) {
 
   $views = array();
   foreach ($views_displays as $view_name => $view_and_displays) {
@@ -749,6 +764,11 @@ function _viewreference_extract_views_displays($views_displays, $append_id = FAL
         $views[$key] = $full ? $display : $display_title;
       }
     }
+  }
+
+  if (!empty($settings['sort_views']))
+  {
+    asort($views);
   }
 
   return $views;
@@ -943,7 +963,7 @@ function viewreference_select_process($element, $form_state, $form) {
   $instance = field_widget_instance($element, $form_state);
   $settings = $field['settings'];
 
-  $options = _viewreference_select_widget_options($settings, $settings['skip_default']);
+  $options = _viewreference_select_widget_options($settings);
   if (!$instance['required']) {
     $options = array(0 => '<'. t('none') .'>') + $options;
   }
@@ -981,9 +1001,9 @@ function viewreference_select_process($element, $form_state, $form) {
 /**
  * @return array[]
  */
-function _viewreference_select_widget_options($settings, $skip_default) {
+function _viewreference_select_widget_options($settings) {
   $options = array();
-  foreach (_viewreference_get_applicable_views_displays($settings, $skip_default) as $view_key => $view_and_displays) {
+  foreach (_viewreference_get_applicable_views_displays($settings) as $view_key => $view_and_displays) {
     list($view, $view_displays) = $view_and_displays;
     $view_optgroup_key = $view_key;
     $view_title = $view->get_title();
