@@ -316,7 +316,7 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
     $field_key = $element['#columns'][0];
     $args_key = $element['#columns'][1];
     if (!empty($element['#default_value'][$field_key])) {
-      $field_name = $element['#parents'][0];
+      $field_name = $element['#field_name'];
       $field = field_info_field($field_name);
       $settings = $field['settings'];
       $settings['referenceable_views'] = array($element['#default_value'][$field_key]);
