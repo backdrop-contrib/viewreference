@@ -162,7 +162,9 @@ function viewreference_field_settings_form($field, $instance, $has_data) {
     '#type' => 'checkbox',
     '#title' => t('Allow PHP code.'),
     '#default_value' => isset($settings['arguments']['php_arguments']) ? $settings['arguments']['php_arguments'] : 0,
-    '#description' => t('Users can insert PHP code to generate the list of arguments. e.g: <em>term_1/&lt;?php print "term_x/term_y"; ?&gt;/term_2</em>'),
+    '#description' => t('Users can insert PHP code to generate the list of arguments. e.g: <em>term_1/&lt;?php print "term_x/term_y"; ?&gt;/term_2</em>') .
+      '<br />' . t('Note: The users must have the <em>use PHP for settings</em> permission.'),
+    '#disabled' => !user_access('use PHP for settings'),
   );
   $form['arguments']['delimiter'] = array(
     '#type' => 'textfield',
@@ -318,12 +320,7 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
  * Validation callback for a viewreference_autocomplete element.
  */
 function viewreference_autocomplete_validate($element, &$form_state, $form) {
-  $field_name = $element['#field_name'];
-  $langcode = $element['#language'];
-  $field_state = field_form_get_state($element['#field_parents'], $field_name, $langcode, $form_state);
-  $field = $field_state['field'];
-
-  $field_key = $element['#columns'][0];
+  $field = field_widget_field($element, $form_state);
   $value = $element['#value'];
   $new_value = NULL;
 
@@ -771,23 +768,23 @@ An array of arguments that will be extracted to the following variables:
  */
 function theme_viewreference_display_title($variables) {
   // Get variables passed to theme function.
-  extract($variables);
 
-  $view->set_display($display_key);
-  $display_title = $view->display_handler->options['title'];
+  $variables['view']->set_display($variables['display_key']);
+  $display_title = $variables['view']->display_handler->options['title'];
 
   if (!$display_title) {
     // No title, we have to construct a title.
-    $display_title = ucfirst($view_name) . ' ' . strtolower($view->display[$display_key]->display_title);
+    $display_title = ucfirst($variables['view_name']) . ' ' .
+      strtolower($variables['view']->display[$variables['display_key']]->display_title);
   }
 
-  if (isset($view->display[$display_key]->display_title)) {
-    $display_title .= ' - ' . $view->display[$display_key]->display_title;
+  if (isset($variables['view']->display[$variables['display_key']]->display_title)) {
+    $display_title .= ' - ' . $variables['view']->display[$variables['display_key']]->display_title;
   }
 
-  if ($append_id) {
+  if ($variables['append_id']) {
     // Append ID for disambiguation in forms (views displays can have the same title).
-    $display_title .= ' [' . $view_name . ':' . $display_key . ']';
+    $display_title .= ' [' . $variables['view_name'] . ':' . $variables['display_key'] . ']';
   }
 
   return $display_title;
@@ -806,10 +803,16 @@ function viewreference_get_element_args($element) {
   $arguments = '';
   $args = array();
   if ($php_arguments) {
-    $variables = array(
-      $element['entity_type'] => $element['entity'],
-    );
-    $arguments = viewreference_eval($string, $variables);
+    $last_edit_user = user_load($element['entity']->revision_uid);
+    if (user_access('use PHP for settings', $last_edit_user)) {
+      $variables = array(
+        $element['entity_type'] => $element['entity'],
+      );
+      $arguments = viewreference_eval($string, $variables);
+    }
+    else {
+      $arguments = $string;
+    }
   }
   elseif ($dsv_arguments) {
     $arguments = $string;
@@ -817,7 +820,7 @@ function viewreference_get_element_args($element) {
   if ($arguments) {
     $args = explode($delimiter, $arguments);
     foreach ($args as $k => $v) {
-      $args[$k] = trim($v);
+      $args[$k] = check_plain(trim($v));
     }
   }
   // Allow modules to easily supply their own views arguments.
@@ -934,12 +937,10 @@ function viewreference_element_info() {
  * @see viewreference_element_info().
  */
 function viewreference_select_process($element, $form_state, $form) {
-  $field_parents = $element['#field_parents'];
   $field_name = $element['#field_name'];
   $language = $element['#language'];
-  $field_state = field_form_get_state($field_parents, $field_name, $language, $form_state);
-  $field = $field_state['field'];
-  $instance = $field_state['instance'];
+  $field = field_widget_field($element, $form_state);
+  $instance = field_widget_instance($element, $form_state);
   $settings = $field['settings'];
 
   $options = _viewreference_select_widget_options($settings, $settings['skip_default']);
