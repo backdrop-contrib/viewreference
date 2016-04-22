@@ -34,6 +34,14 @@ function viewreference_theme() {
         'append_id' => FALSE,
       ),
     ),
+    'viewreference_display_form_title' => array(
+      'variables' => array(
+        'view' => NULL,
+        'view_name' => NULL,
+        'display_key' => NULL,
+        'append_id' => FALSE,
+      ),
+    ),
     'viewreference_formatter_default' => array(
       'variables' => array('element' => NULL),
     ),
@@ -332,11 +340,11 @@ function viewreference_autocomplete_value($element, $input = FALSE, $form_state)
  * Validation callback for a viewreference_autocomplete element.
  */
 function viewreference_autocomplete_validate($element, &$form_state, $form) {
-  $field = field_widget_field($element, $form_state);
   $value = $element['#value'];
   $new_value = NULL;
 
   if (!empty($value)) {
+    $field = field_widget_field($element, $form_state);
     $regex  = '/' // Start of string
       . '(.*).*?' // Any non-greedy
       . '(\\[)' // [
@@ -749,7 +757,7 @@ function _viewreference_extract_views_displays($settings, $views_displays, $appe
         'display_key' => $display_key,
         'append_id' => $append_id,
       );
-      $display_title = theme('viewreference_display_title', $theme_vars);
+      $display_title = theme('viewreference_display_form_title', $theme_vars);
       // Determine whether and what to return.
       $key = $long_key ? $display_title . ($append_id ? '' : ' [' . $id . ']') : $id;
       if ($string) {
@@ -787,6 +795,43 @@ An array of arguments that will be extracted to the following variables:
  *  The display title of this views display.
  */
 function theme_viewreference_display_title($variables) {
+  // Get variables passed to theme function.
+
+  $variables['view']->set_display($variables['display_key']);
+  $display_title = $variables['view']->get_title();
+
+  if (!$display_title) {
+    // No title, we have to construct a title.
+    $display_title = ucfirst($variables['view_name']) . ' ' .
+      strtolower($variables['view']->display[$variables['display_key']]->display_title);
+  }
+
+  if (isset($variables['view']->display[$variables['display_key']]->display_title)) {
+    $display_title .= ' - ' . $variables['view']->display[$variables['display_key']]->display_title;
+  }
+
+  if ($variables['append_id']) {
+    // Append ID for disambiguation in forms (views displays can have the same title).
+    $display_title .= ' [' . $variables['view_name'] . ':' . $variables['display_key'] . ']';
+  }
+
+  return $display_title;
+}
+
+
+/**
+ * Theme the content form display title for this view display.
+ *
+ * @param $variables
+An array of arguments that will be extracted to the following variables:
+ *    $view - The view object.
+ *    $view_name - The name of the view.
+ *    $display_key - The name of the display to use.
+ *    $append_id - Boolean indicating whether to append a unique id.
+ * @return
+ *  The display title of this views display.
+ */
+function theme_viewreference_display_form_title($variables) {
   // Get variables passed to theme function.
 
   $variables['view']->set_display($variables['display_key']);
@@ -1046,6 +1091,7 @@ function viewreference_autocomplete_process($element, $form_state, $form) {
     '#autocomplete_path' => 'viewreference/autocomplete/'. $bundle . '/' . $field_name,
     '#element_validate' => array('viewreference_autocomplete_validate'),
     '#field_name' => $field_name,
+    '#field_parents' => $field_parents,
     '#language' => $language,
     '#delta' => $element['#delta'],
     '#columns' => $element['#columns'],
