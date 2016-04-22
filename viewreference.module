@@ -835,6 +835,43 @@ function theme_viewreference_display_form_title($variables) {
   // Get variables passed to theme function.
 
   $variables['view']->set_display($variables['display_key']);
+  $display_title = $variables['view']->get_title();
+
+  if (!$display_title) {
+    // No title, we have to construct a title.
+    $display_title = ucfirst($variables['view_name']) . ' ' .
+      strtolower($variables['view']->display[$variables['display_key']]->display_title);
+  }
+
+  if (isset($variables['view']->display[$variables['display_key']]->display_title)) {
+    $display_title .= ' - ' . $variables['view']->display[$variables['display_key']]->display_title;
+  }
+
+  if ($variables['append_id']) {
+    // Append ID for disambiguation in forms (views displays can have the same title).
+    $display_title .= ' [' . $variables['view_name'] . ':' . $variables['display_key'] . ']';
+  }
+
+  return $display_title;
+}
+
+
+/**
+ * Theme the content form display title for this view display.
+ *
+ * @param $variables
+An array of arguments that will be extracted to the following variables:
+ *    $view - The view object.
+ *    $view_name - The name of the view.
+ *    $display_key - The name of the display to use.
+ *    $append_id - Boolean indicating whether to append a unique id.
+ * @return
+ *  The display title of this views display.
+ */
+function theme_viewreference_display_form_title($variables) {
+  // Get variables passed to theme function.
+
+  $variables['view']->set_display($variables['display_key']);
   $display_title = $variables['view']->display_handler->options['title'];
 
   if (!$display_title) {
