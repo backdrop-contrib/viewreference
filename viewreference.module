@@ -87,6 +87,7 @@ function viewreference_field_info() {
       ),
       'default_widget'    => 'viewreference_autocomplete',
       'default_formatter' => 'viewreference_default',
+      'property_type' => 'view',
     ),
   );
   return $field_info;
