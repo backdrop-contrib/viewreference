@@ -786,16 +786,15 @@ function _viewreference_extract_views_displays($settings, $views_displays, $appe
  * Theme the display title for this view display.
  *
  * @param $variables
- *  An array of arguments that will be extracted to the following variables:
- *    $view - The view object.
- *    $view_name - The name of the view.
- *    $display_key - The name of the display to use.
- *    $append_id - Boolean indicating whether to append a unique id.
+ *  An array of useful values with the keys:
+ *    'view' - The view object.
+ *    'view_name' - The name of the view.
+ *    'display_key' - The name of the display to use.
+ *    'append_id' - Boolean indicating whether to append a unique id.
  * @return
- *  The display title of this views display.
+ *  The title of this view.
  */
 function theme_viewreference_display_title($variables) {
-  // Get variables passed to theme function.
   $display_title = $variables['view']->get_title();  
   return $display_title;
 }
@@ -804,13 +803,13 @@ function theme_viewreference_display_title($variables) {
  * Theme the content form display title for this view display.
  *
  * @param $variables
- *   An array of arguments that will be extracted to the following variables:
- *    $view - The view object.
- *    $view_name - The name of the view.
- *    $display_key - The name of the display to use.
- *    $append_id - Boolean indicating whether to append a unique id.
+ *  An array of useful values with the keys:
+ *    'view' - The view object.
+ *    'view_name' - The name of the view.
+ *    'display_key' - The name of the display to use.
+ *    'append_id' - Boolean indicating whether to append a unique id.
  * @return
- *  The display title of this views display.
+ *  The admin form title of this views display.
  */
 function theme_viewreference_display_form_title($variables) {
   // Get variables passed to theme function.
