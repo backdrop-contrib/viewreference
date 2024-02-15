@@ -23,16 +23,12 @@ Installation
 - Install this module using the official Backdrop CMS instructions at
   https://docs.backdropcms.org/documentation/extend-with-modules.
 
-- Visit the configuration page under Administration > Configuration > Category >
-  Foo (admin/config/category/foo) and enter the required information.
+- Add a field to a content type of type 'view reference.' Name the field what you want. Choose 'select list' or 'autocomplete' as the widget.
 
-- Any additional steps.
+- Choose the views you want to be available for selection. Save.
 
+- Create a piece of content of the type whever you added the field. Choose the view. Save. You should see the view displayed with the content.
 
-Differences from Drupal 7 <!-- Do not include if there are no differences. -->
--------------------------
-
-- Administrative interface has been improved.
 
 Documentation 
 -------------
@@ -55,9 +51,11 @@ Current Maintainers
 Credits
 -------
 
-- Ported to Backdrop CMS by [Giant Rabbit](https://github.com/giant-rabbit).
+- Ported to Backdrop CMS by [Lauren Blais](https://github.com/rlblais),[Giant Rabbit](https://github.com/giant-rabbit).
 - Porting to Backdrop CMS development sponsored by [USENIX](https://www.usenix.org/).
-- Originally written for Drupal by [(danielb)](https://www.drupal.org/u/danielb).
+- Originally written for Drupal and co-maintained by [(danielb)](https://www.drupal.org/u/danielb).
+- Drupal 7 co-mainatainers:
+ - [James Silver (jamsilver)](https://www.drupal.org/u/jamsilver)
 - Based on [View Reference](https://www.drupal.org/project/viewreference).
 
 License 
